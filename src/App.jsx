@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Terminal, Send, LogOut, Zap } from 'lucide-react';
+import { Loader2, ArrowUp, LogOut, Zap, FileText, Download, X, Sparkles } from 'lucide-react';
 import {
   ClerkProvider,
   SignIn,
@@ -19,8 +19,41 @@ const STRIPE_TOPUP_L1 = 'price_1Tu3xwALcJ18DmKpfq9H9NFX'; // +7 queries $10
 const STRIPE_TOPUP_L2 = 'price_1Tu3ylALcJ18DmKpiFx5MWts'; // +25 queries
 const STRIPE_TOPUP_L3 = 'price_1Tu3zsALcJ18DmKplKQPDWUh'; // +50 queries
 
-const TIER_LABELS = { l1: 'L1 FREE', l2: 'L2 ANALYST', l3: 'L3 ENTERPRISE' };
-const TIER_COLORS = { l1: '#475569', l2: '#38bdf8', l3: '#a855f7' };
+const TIER_LABELS = { l1: 'Free', l2: 'Analyst', l3: 'Enterprise' };
+const TIER_COLORS = {
+  l1: { fg: '#52525b', bg: '#f4f4f5', border: '#e4e4e7' },
+  l2: { fg: '#1d4ed8', bg: '#eff4ff', border: '#c7d7fe' },
+  l3: { fg: '#6d28d9', bg: '#f5f0ff', border: '#ddd0fe' },
+};
+
+const COLUMN = 768;
+
+const SUGGESTIONS = [
+  {
+    title: 'Humanoid robotics',
+    prompt: 'Map the humanoid robotics supply chain — actuators, harmonic drives, rare earth magnets. Where are the bottlenecks?',
+  },
+  {
+    title: 'Co-packaged optics',
+    prompt: 'How is the co-packaged optics ramp reshaping the optical transceiver supply chain, and who benefits?',
+  },
+  {
+    title: 'Advanced packaging',
+    prompt: 'Current state of advanced packaging capacity — CoWoS, HBM, substrates. Where are the constraints?',
+  },
+  {
+    title: 'Energy',
+    prompt: 'How is data centre power demand reshaping grid equipment supply — transformers, turbines, cabling?',
+  },
+  {
+    title: 'Space and satellite',
+    prompt: 'Who supplies the satellite manufacturing base — launch capacity, components, ground segment?',
+  },
+  {
+    title: 'China plus one',
+    prompt: 'Which China plus one destinations are absorbing the most manufacturing shift, and what is the bottleneck?',
+  },
+];
 
 // ─── USINO Brief renderer ─────────────────────────────────────────────────────
 
@@ -51,9 +84,11 @@ function inline(text) {
   let last = 0, match, idx = 0;
   while ((match = re.exec(text)) !== null) {
     if (match.index > last) parts.push(text.slice(last, match.index));
-    if (match[2]) parts.push(<strong key={idx++} style={{ color: '#f8fafc' }}>{match[2]}</strong>);
-    else if (match[3]) parts.push(<em key={idx++} style={{ color: '#e2e8f0' }}>{match[3]}</em>);
-    else if (match[4]) parts.push(<code key={idx++} style={{ backgroundColor: '#1e293b', padding: '1px 5px', borderRadius: '3px', fontSize: '12px', color: '#38bdf8' }}>{match[4]}</code>);
+    if (match[2]) parts.push(<strong key={idx++} style={{ color: '#18181b', fontWeight: 600 }}>{match[2]}</strong>);
+    else if (match[3]) parts.push(<em key={idx++} style={{ color: '#3f3f46' }}>{match[3]}</em>);
+    else if (match[4]) parts.push(
+      <code key={idx++} style={{ background: '#f4f4f5', border: '1px solid #e7e7ea', padding: '1px 5px', borderRadius: '4px', fontSize: '13px', fontFamily: 'var(--mono)', color: '#1d4ed8' }}>{match[4]}</code>
+    );
     last = match.index + match[0].length;
   }
   if (last < text.length) parts.push(text.slice(last));
@@ -67,71 +102,89 @@ function renderMarkdown(text) {
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
+
     if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
       const level = trimmed.startsWith('### ') ? 3 : trimmed.startsWith('## ') ? 2 : 1;
-      const text = trimmed.replace(/^#{1,3}\s+/, '');
-      const sizes = { 1: '18px', 2: '15px', 3: '13px' };
+      const content = trimmed.replace(/^#{1,3}\s+/, '');
+      const sizes = { 1: '21px', 2: '17px', 3: '15px' };
       elements.push(
-        <div key={i} style={{ fontWeight: 'bold', fontSize: sizes[level], color: '#f8fafc', margin: level === 1 ? '8px 0 12px' : '16px 0 8px', letterSpacing: level === 3 ? '0.05em' : 0, textAlign: 'left' }}>
-          {text}
+        <div key={i} style={{
+          fontWeight: 600,
+          fontSize: sizes[level],
+          color: '#18181b',
+          letterSpacing: '-0.01em',
+          margin: level === 1 ? '4px 0 14px' : '24px 0 8px',
+          textAlign: 'left',
+        }}>
+          {content}
         </div>
       );
     } else if (trimmed.startsWith('Market intelligence only.')) {
       const parts = trimmed.split(/\.\s+(?=USINO)/);
       elements.push(
-        <div key={i} style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px solid #1e293b', fontSize: '11px', color: '#475569', fontStyle: 'italic', textAlign: 'left' }}>
+        <div key={i} style={{ marginTop: '24px', paddingTop: '14px', borderTop: '1px solid #e7e7ea', fontSize: '12px', color: '#a1a1aa', textAlign: 'left' }}>
           {parts.map((p, j) => <div key={j}>{p}{j < parts.length - 1 ? '.' : ''}</div>)}
         </div>
       );
     } else if (trimmed === '---') {
-      elements.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid #1e293b', margin: '16px 0' }} />);
+      elements.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid #e7e7ea', margin: '20px 0' }} />);
     } else if (trimmed.startsWith('**') && trimmed.endsWith('**') && SECTION_LABELS.some(s => trimmed.includes(s))) {
       const label = trimmed.replace(/\*\*/g, '');
       elements.push(
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0 8px' }}>
-          <span style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.12em', color: '#38bdf8', textTransform: 'uppercase' }}>{label}</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#1e293b' }} />
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '26px 0 10px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.09em', color: '#2563eb', textTransform: 'uppercase' }}>{label}</span>
+          <div style={{ flex: 1, height: '1px', background: '#e7e7ea' }} />
         </div>
       );
     } else if (trimmed.startsWith('**[HEADLINE]**') || trimmed.startsWith('**[')) {
       const headline = trimmed.replace(/^\*\*\[HEADLINE\]\*\*\s*—?\s*/, '').replace(/\*\*/g, '');
       elements.push(
-        <div key={i} style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', lineHeight: '1.4', margin: '4px 0 16px', fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
+        <div key={i} style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', lineHeight: 1.4, letterSpacing: '-0.015em', margin: '4px 0 18px' }}>
           {headline}
         </div>
       );
     } else if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-      // Markdown table row — collect all consecutive table rows
       const tableRows = [];
       while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
         tableRows.push(lines[i].trim());
         i++;
       }
-      // Filter out separator rows (---|---|---)
       const dataRows = tableRows.filter(r => !/^\|[\s\-|:]+\|$/.test(r));
       const isHeader = dataRows.length > 0;
-      dataRows.forEach((row, ri) => {
-        const cells = row.split('|').map(c => c.trim()).filter((_, ci) => ci > 0 && ci < row.split('|').length - 1);
-        elements.push(
-          <div key={`${i}-${ri}`} style={{ display: 'flex', gap: '12px', padding: '6px 0', borderBottom: '1px solid #0f172a', alignItems: 'baseline', background: ri % 2 === 0 ? 'transparent' : '#0a0f1a' }}>
-            <span style={{ fontWeight: ri === 0 && isHeader ? 'bold' : 'bold', color: '#38bdf8', fontSize: '12px', minWidth: '90px', fontFamily: 'monospace' }}>{cells[0]}</span>
-            {cells[1] && <span style={{ color: '#94a3b8', fontSize: '12px', minWidth: '120px' }}>{cells[1]}</span>}
-            {cells[2] && <span style={{ color: '#64748b', fontSize: '12px', flex: 1 }}>{cells[2]}</span>}
-          </div>
-        );
-      });
+      elements.push(
+        <div key={`t-${i}`} style={{ border: '1px solid #e7e7ea', borderRadius: '10px', overflow: 'hidden', margin: '12px 0' }}>
+          {dataRows.map((row, ri) => {
+            const segs = row.split('|');
+            const cells = segs.map(c => c.trim()).filter((_, ci) => ci > 0 && ci < segs.length - 1);
+            const head = ri === 0 && isHeader;
+            return (
+              <div key={ri} style={{
+                display: 'flex',
+                gap: '14px',
+                padding: '9px 14px',
+                borderBottom: ri < dataRows.length - 1 ? '1px solid #f1f1f3' : 'none',
+                background: head ? '#fafafa' : '#fff',
+                alignItems: 'baseline',
+              }}>
+                <span style={{ fontWeight: 600, color: head ? '#52525b' : '#1d4ed8', fontSize: '13px', minWidth: '100px', fontFamily: 'var(--mono)' }}>{cells[0]}</span>
+                {cells[1] && <span style={{ color: head ? '#52525b' : '#3f3f46', fontSize: '13px', minWidth: '130px', fontWeight: head ? 600 : 400 }}>{cells[1]}</span>}
+                {cells[2] && <span style={{ color: head ? '#52525b' : '#71717a', fontSize: '13px', flex: 1, fontWeight: head ? 600 : 400 }}>{cells[2]}</span>}
+              </div>
+            );
+          })}
+        </div>
+      );
       continue;
     } else if (trimmed.match(/^[A-Z0-9.]{2,12}\s*\|/) && !trimmed.startsWith('|')) {
       const parts = trimmed.split('|').map(p => p.trim());
       elements.push(
-        <div key={i} style={{ display: 'flex', gap: '12px', padding: '6px 0', borderBottom: '1px solid #0f172a', alignItems: 'baseline' }}>
-          <span style={{ fontWeight: 'bold', color: '#38bdf8', fontSize: '12px', minWidth: '80px', fontFamily: 'monospace' }}>{parts[0]}</span>
-          <span style={{ color: '#94a3b8', fontSize: '12px', minWidth: '140px' }}>{parts[1]}</span>
-          <span style={{ color: '#64748b', fontSize: '12px', flex: 1 }}>{parts[2]}</span>
+        <div key={i} style={{ display: 'flex', gap: '14px', padding: '8px 0', borderBottom: '1px solid #f1f1f3', alignItems: 'baseline' }}>
+          <span style={{ fontWeight: 600, color: '#1d4ed8', fontSize: '13px', minWidth: '90px', fontFamily: 'var(--mono)' }}>{parts[0]}</span>
+          <span style={{ color: '#3f3f46', fontSize: '13px', minWidth: '150px' }}>{parts[1]}</span>
+          <span style={{ color: '#71717a', fontSize: '13px', flex: 1 }}>{parts[2]}</span>
         </div>
       );
     } else if (trimmed.match(/^[A-Z]{1,6}\s*\(/) && trimmed.includes('—')) {
-      // Split on ".— TICKER" pattern (no lookbehind needed)
       const tickerLines = trimmed.split(/\.\s*[-–—]\s*(?=[A-Z]{1,6}\s*\()/)
         .map(s => s.trim()).filter(Boolean);
       tickerLines.forEach((tl, ti) => {
@@ -139,26 +192,26 @@ function renderMarkdown(text) {
         const ticker = m ? m[1].trim() : tl;
         const rationale = m ? m[2].trim() : '';
         elements.push(
-          <div key={`${i}-${ti}`} style={{ display: 'flex', gap: '10px', margin: '4px 0', alignItems: 'baseline' }}>
-            <span style={{ fontWeight: 'bold', color: '#22c55e', fontSize: '12px', minWidth: '130px', fontFamily: 'monospace' }}>{ticker}</span>
-            {rationale && <span style={{ color: '#94a3b8', fontSize: '13px' }}>— {rationale}</span>}
+          <div key={`${i}-${ti}`} style={{ display: 'flex', gap: '12px', margin: '6px 0', alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600, color: '#15803d', fontSize: '13px', minWidth: '140px', fontFamily: 'var(--mono)' }}>{ticker}</span>
+            {rationale && <span style={{ color: '#3f3f46', fontSize: '14px' }}>{rationale}</span>}
           </div>
         );
       });
     } else if (trimmed.match(/^[-•]\s/)) {
       elements.push(
-        <div key={i} style={{ display: 'flex', gap: '8px', margin: '4px 0', paddingLeft: '4px' }}>
-          <span style={{ color: '#ef4444', flexShrink: 0, fontSize: '12px' }}>▸</span>
-          <span style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.6' }}>{inline(trimmed.slice(2))}</span>
+        <div key={i} style={{ display: 'flex', gap: '10px', margin: '6px 0' }}>
+          <span style={{ color: '#2563eb', flexShrink: 0, fontSize: '14px', lineHeight: '1.7' }}>•</span>
+          <span style={{ color: '#3f3f46', fontSize: '14.5px', lineHeight: 1.7 }}>{inline(trimmed.slice(2))}</span>
         </div>
       );
     } else if (trimmed === '**' || trimmed === '*') {
       // stray markdown artifacts — skip
     } else if (trimmed === '') {
-      elements.push(<div key={i} style={{ height: '8px' }} />);
+      elements.push(<div key={i} style={{ height: '10px' }} />);
     } else {
       elements.push(
-        <p key={i} style={{ margin: '4px 0', color: '#cbd5e1', lineHeight: '1.7', fontSize: '13px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', textAlign: 'left' }}>
+        <p key={i} style={{ margin: '6px 0', color: '#3f3f46', lineHeight: 1.75, fontSize: '14.5px', textAlign: 'left' }}>
           {inline(line)}
         </p>
       );
@@ -168,37 +221,237 @@ function renderMarkdown(text) {
   return elements;
 }
 
-// ─── Clerk appearance shared config ──────────────────────────────────────────
+// ─── Clerk appearance ─────────────────────────────────────────────────────────
 
 const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: '#2563eb',
+    colorText: '#18181b',
+    colorTextSecondary: '#71717a',
+    colorBackground: '#ffffff',
+    colorInputBackground: '#ffffff',
+    borderRadius: '10px',
+    fontFamily: 'var(--sans)',
+  },
   elements: {
-    rootBox: { fontFamily: 'ui-monospace, monospace' },
-    card: { backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', boxShadow: 'none' },
-    headerTitle: { color: '#f8fafc', fontFamily: 'ui-monospace, monospace' },
-    headerSubtitle: { color: '#64748b' },
-    formFieldLabel: { color: '#94a3b8', fontSize: '12px' },
-    formFieldInput: { backgroundColor: '#020617', border: '1px solid #334155', color: '#f8fafc', fontFamily: 'ui-monospace, monospace' },
-    formButtonPrimary: { backgroundColor: '#38bdf8', color: '#0f172a', fontFamily: 'ui-monospace, monospace', fontWeight: 'bold' },
-    footerActionLink: { color: '#38bdf8' },
-    dividerLine: { backgroundColor: '#1e293b' },
-    dividerText: { color: '#475569' },
-    socialButtonsBlockButton: { backgroundColor: '#1e293b', border: '1px solid #334155', color: '#e2e8f0' },
-    socialButtonsBlockButtonText: { color: '#e2e8f0' },
-  }
+    card: { boxShadow: '0 12px 32px rgba(16,24,40,0.12)', border: '1px solid #e7e7ea', borderRadius: '16px' },
+    headerTitle: { fontSize: '19px', fontWeight: 600 },
+    headerSubtitle: { color: '#71717a' },
+    formButtonPrimary: { backgroundColor: '#2563eb', fontSize: '14px', fontWeight: 600, textTransform: 'none' },
+    footerActionLink: { color: '#2563eb', fontWeight: 500 },
+    socialButtonsBlockButton: { border: '1px solid #e7e7ea' },
+  },
 };
+
+// ─── Shared pieces ────────────────────────────────────────────────────────────
+
+function Logo() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+      <div style={{
+        width: 26, height: 26, borderRadius: 7,
+        background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M2 11.5L6 6.5L9.5 9.5L14 3.5" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <span style={{ fontWeight: 600, fontSize: '15px', letterSpacing: '-0.01em', color: '#18181b' }}>
+        USINO <span style={{ color: '#71717a', fontWeight: 500 }}>Nexus</span>
+      </span>
+    </div>
+  );
+}
+
+function Pill({ children, tone = 'neutral' }) {
+  const tones = {
+    neutral: { fg: '#52525b', bg: '#f4f4f5', border: '#e4e4e7' },
+    blue: TIER_COLORS.l2,
+    violet: TIER_COLORS.l3,
+  };
+  const t = tones[tone] || tones.neutral;
+  return (
+    <span style={{
+      fontSize: '12px', fontWeight: 600, color: t.fg, background: t.bg,
+      border: `1px solid ${t.border}`, borderRadius: '999px', padding: '3px 10px', whiteSpace: 'nowrap',
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function TypingDots() {
+  return (
+    <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 0 8px' }}>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {[0, 1, 2].map(n => (
+          <span key={n} className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb', display: 'block' }} />
+        ))}
+      </div>
+      <span style={{ color: '#a1a1aa', fontSize: '13.5px' }}>Analysing…</span>
+    </div>
+  );
+}
+
+function EmptyState({ heading, sub, onPick }) {
+  return (
+    <div className="fade-up" style={{ padding: '48px 0 8px' }}>
+      <div style={{
+        width: 44, height: 44, borderRadius: 12,
+        background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px',
+      }}>
+        <Sparkles size={20} color="#fff" />
+      </div>
+      <h1 style={{ fontSize: '27px', fontWeight: 600, letterSpacing: '-0.025em', color: '#18181b', margin: '0 0 8px' }}>
+        {heading}
+      </h1>
+      <p style={{ color: '#71717a', fontSize: '15.5px', margin: '0 0 30px', maxWidth: 520, lineHeight: 1.6 }}>
+        {sub}
+      </p>
+
+      <div style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '12px' }}>
+        Start with
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+        {SUGGESTIONS.map(s => (
+          <button
+            key={s.title}
+            className="suggest-card"
+            onClick={() => onPick(s.prompt)}
+            style={{
+              textAlign: 'left', background: '#fff', border: '1px solid #e7e7ea',
+              borderRadius: '12px', padding: '14px 16px', cursor: 'pointer',
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '14px', color: '#18181b', marginBottom: '3px' }}>{s.title}</div>
+            <div style={{ fontSize: '13px', color: '#71717a', lineHeight: 1.5 }}>{s.prompt}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Composer({ value, onChange, onSubmit, disabled, placeholder, hint }) {
+  const taRef = useRef(null);
+
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+  }, [value]);
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit(e);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid #e7e7ea', background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)', padding: '14px 24px 18px' }}>
+      <form onSubmit={onSubmit} style={{ maxWidth: COLUMN, margin: '0 auto' }}>
+        <div
+          className="composer"
+          style={{
+            display: 'flex', alignItems: 'flex-end', gap: '10px',
+            border: '1px solid #d4d4d8', borderRadius: '14px',
+            padding: '10px 10px 10px 16px', background: '#fff',
+            boxShadow: '0 1px 2px rgba(16,24,40,0.05)',
+            transition: 'border-color .15s ease, box-shadow .15s ease',
+          }}
+        >
+          <textarea
+            ref={taRef}
+            rows={1}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            onKeyDown={handleKey}
+            disabled={disabled}
+            placeholder={placeholder}
+            style={{
+              flex: 1, border: 'none', outline: 'none', resize: 'none',
+              fontSize: '15px', lineHeight: 1.6, color: '#18181b',
+              background: 'transparent', padding: '4px 0', maxHeight: 180,
+            }}
+          />
+          <button
+            type="submit"
+            disabled={disabled || !value.trim()}
+            aria-label="Send"
+            style={{
+              width: 34, height: 34, borderRadius: '10px', border: 'none', flexShrink: 0,
+              background: disabled || !value.trim() ? '#e4e4e7' : '#2563eb',
+              color: disabled || !value.trim() ? '#a1a1aa' : '#fff',
+              cursor: disabled || !value.trim() ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background .15s ease',
+            }}
+          >
+            {disabled ? <Loader2 size={16} className="loader-spin" /> : <ArrowUp size={17} />}
+          </button>
+        </div>
+        <div style={{ fontSize: '12px', color: '#a1a1aa', marginTop: '8px', textAlign: 'center' }}>
+          {hint}
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function UserBubble({ children }) {
+  return (
+    <div className="fade-up" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{
+        maxWidth: '86%', background: '#f4f4f5', border: '1px solid #e7e7ea',
+        borderRadius: '14px 14px 4px 14px', padding: '10px 15px',
+        fontSize: '14.5px', lineHeight: 1.6, color: '#18181b', whiteSpace: 'pre-wrap',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AssistantBlock({ children }) {
+  return (
+    <div className="fade-up" style={{ textAlign: 'left' }}>
+      {children}
+    </div>
+  );
+}
 
 // ─── Sign-in modal overlay ────────────────────────────────────────────────────
 
 function SignInModal({ onClose }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(24,24,27,0.45)',
+      backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', zIndex: 100, padding: '20px',
+    }}>
       <div style={{ position: 'relative' }}>
         {onClose && (
-          <button onClick={onClose} style={{ position: 'absolute', top: -12, right: -12, background: '#1e293b', border: '1px solid #334155', borderRadius: '50%', width: 28, height: 28, color: '#94a3b8', cursor: 'pointer', fontSize: 16, zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              position: 'absolute', top: -14, right: -14, background: '#fff',
+              border: '1px solid #e7e7ea', borderRadius: '50%', width: 30, height: 30,
+              color: '#71717a', cursor: 'pointer', zIndex: 101, display: 'flex',
+              alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(16,24,40,0.1)',
+            }}
+          >
+            <X size={15} />
+          </button>
         )}
-        <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#38bdf8', letterSpacing: '0.1em', marginBottom: '4px' }}>1 FREE QUERY USED</div>
-          <div style={{ color: '#94a3b8', fontSize: '12px' }}>Sign in to continue querying USINO NEXUS</div>
+        <div style={{ marginBottom: '14px', textAlign: 'center' }}>
+          <div style={{ fontSize: '13px', color: '#71717a' }}>
+            You've used your free preview query
+          </div>
         </div>
         <SignIn appearance={CLERK_APPEARANCE} />
       </div>
@@ -206,18 +459,126 @@ function SignInModal({ onClose }) {
   );
 }
 
-// ─── Main chat (inside ClerkProvider — can use useAuth) ───────────────────────
+// ─── Upgrade modal ────────────────────────────────────────────────────────────
+
+function PlanCard({ name, price, per, blurb, cta, onClick, disabled, accent, subtle }) {
+  return (
+    <div style={{
+      border: `1px solid ${accent ? '#c7d7fe' : '#e7e7ea'}`,
+      background: accent ? '#fbfcff' : '#fff',
+      borderRadius: '12px', padding: '18px', marginBottom: '10px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+        <span style={{ fontWeight: 600, fontSize: '14.5px', color: accent ? '#1d4ed8' : '#18181b' }}>{name}</span>
+        <span style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', letterSpacing: '-0.02em' }}>
+          {price}{per && <span style={{ fontSize: '13px', color: '#a1a1aa', fontWeight: 400 }}>{per}</span>}
+        </span>
+      </div>
+      <div style={{ fontSize: '13.5px', color: '#71717a', marginBottom: '14px', lineHeight: 1.55 }}>{blurb}</div>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        style={{
+          width: '100%', borderRadius: '9px', padding: '10px', fontWeight: 600, fontSize: '14px',
+          cursor: disabled ? 'wait' : 'pointer',
+          border: subtle ? '1px solid #e4e4e7' : 'none',
+          background: subtle ? '#fff' : accent ? '#2563eb' : '#7c3aed',
+          color: subtle ? '#3f3f46' : '#fff',
+        }}
+      >
+        {disabled ? 'Redirecting…' : cta}
+      </button>
+    </div>
+  );
+}
+
+function UpgradeModal({ tier, upgrading, onUpgrade, onTopup, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(24,24,27,0.45)', backdropFilter: 'blur(3px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px',
+    }}>
+      <div style={{
+        background: '#fff', border: '1px solid #e7e7ea', borderRadius: '16px',
+        padding: '26px', maxWidth: 460, width: '100%',
+        boxShadow: '0 20px 48px rgba(16,24,40,0.18)', maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', letterSpacing: '-0.02em' }}>
+            Expand your access
+          </div>
+          <div style={{ fontSize: '14px', color: '#71717a', marginTop: '5px', lineHeight: 1.55 }}>
+            Full supply chain coverage, higher query limits, and priority routing.
+          </div>
+        </div>
+
+        {tier === 'l1' && (
+          <PlanCard
+            name="Top up — Free tier" price="$10" blurb="+7 bonus queries. Raises your daily cap from 3 to 10."
+            cta="Add queries" subtle disabled={upgrading}
+            onClick={() => { onTopup(STRIPE_TOPUP_L1); onClose(); }}
+          />
+        )}
+
+        {tier !== 'l2' && (
+          <PlanCard
+            name="L2 Analyst" price="$350" per="/mo" accent
+            blurb="100 queries a month · full brief formats · priority model routing."
+            cta="Subscribe" disabled={upgrading}
+            onClick={() => onUpgrade(STRIPE_PRICE_L2)}
+          />
+        )}
+
+        <PlanCard
+          name="L3 Enterprise" price="$4,200" per="/mo"
+          blurb="Everything in L2 · custom knowledge base · white-label briefs · dedicated support."
+          cta="Subscribe" disabled={upgrading}
+          onClick={() => onUpgrade(STRIPE_PRICE_L3)}
+        />
+
+        <button
+          onClick={onClose}
+          className="btn-ghost"
+          style={{
+            width: '100%', background: 'none', border: 'none', borderRadius: '9px',
+            padding: '9px', color: '#71717a', cursor: 'pointer', fontSize: '13.5px', marginTop: '4px',
+          }}
+        >
+          Maybe later
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Banner ───────────────────────────────────────────────────────────────────
+
+function Banner({ tone, children, onClose }) {
+  const tones = {
+    green: { bg: '#f0fdf4', border: '#bbf7d0', fg: '#15803d' },
+    blue: { bg: '#eff4ff', border: '#c7d7fe', fg: '#1d4ed8' },
+  };
+  const t = tones[tone];
+  return (
+    <div style={{
+      background: t.bg, borderBottom: `1px solid ${t.border}`, padding: '9px 24px',
+      display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px',
+    }}>
+      <span style={{ color: t.fg, fontSize: '13.5px', fontWeight: 500 }}>{children}</span>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', color: t.fg, cursor: 'pointer', display: 'flex', padding: 0 }}>
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+// ─── Main chat (authenticated) ────────────────────────────────────────────────
 
 function NexusChat() {
   const { getToken, signOut } = useAuth();
   const { user } = useUser();
 
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: "### USINO NEXUS — ONLINE\n\n**SYSTEM STATUS:** READY\n\nEnter any supply chain question to generate institutional-grade market intelligence."
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [tier, setTier] = useState('l1');
@@ -226,7 +587,6 @@ function NexusChat() {
   const [upgrading, setUpgrading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // PDF download — opens print window
   const downloadPDF = useCallback((htmlContent) => {
     const win = window.open('', '_blank');
     win.document.write(`<!DOCTYPE html><html><head>
@@ -236,22 +596,21 @@ function NexusChat() {
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body { margin: 0; padding: 0; background: #fff; }
         @page { margin: 0.6in; size: A4; }
-        .no-print { display: flex; padding: 14px 20px; background: #f0f0f0; gap: 10px; font-family: Arial, sans-serif; }
+        .no-print { display: flex; padding: 14px 20px; background: #f4f4f5; gap: 10px; font-family: -apple-system, sans-serif; }
         @media print { .no-print { display: none !important; } }
-        button { padding: 9px 20px; border: none; cursor: pointer; font-size: 13px; border-radius: 4px; }
+        button { padding: 9px 20px; border: none; cursor: pointer; font-size: 13px; border-radius: 6px; }
       </style>
     </head><body>
       <div class="no-print">
-        <button onclick="window.print()" style="background:#1a1a1a;color:#fff;">Print / Save as PDF</button>
-        <button onclick="window.close()" style="background:#666;color:#fff;">Close</button>
-        <span style="margin-left:8px;font-size:12px;color:#666;align-self:center;">Use Chrome → Print → Save as PDF for best results</span>
+        <button onclick="window.print()" style="background:#2563eb;color:#fff;">Print / Save as PDF</button>
+        <button onclick="window.close()" style="background:#e4e4e7;color:#3f3f46;">Close</button>
+        <span style="margin-left:8px;font-size:12px;color:#71717a;align-self:center;">Use Chrome → Print → Save as PDF for best results</span>
       </div>
       ${htmlContent}
     </body></html>`);
     win.document.close();
   }, []);
 
-  // Generate full PDF report from any standard response
   const handleGenerateReport = useCallback(async (sourceContent) => {
     if (loading) return;
     setLoading(true);
@@ -307,7 +666,6 @@ function NexusChat() {
   const [showTopupBanner, setShowTopupBanner] = useState(params.get('topup') === 'true');
   const [bonusQueries, setBonusQueries] = useState(0);
 
-  // Fetch subscription tier + bonus on mount (poll after Stripe redirect)
   useEffect(() => {
     const isReturn = params.get('upgraded') === 'true' || params.get('topup') === 'true';
     const fetchTier = async () => {
@@ -387,12 +745,11 @@ function NexusChat() {
     return { task_type: 'standard', prompt: trimmed };
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  const submitPrompt = async (rawValue) => {
+    const rawInput = (rawValue ?? input).trim();
+    if (!rawInput || loading) return;
 
-    const { task_type, prompt: userPrompt } = parseCommand(input);
-    const rawInput = input.trim();
+    const { task_type, prompt: userPrompt } = parseCommand(rawInput);
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: rawInput }]);
     setLoading(true);
@@ -412,7 +769,7 @@ function NexusChat() {
         const err = await response.json();
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `### QUERY LIMIT REACHED\n\nYou've used all **${err.detail?.limit} queries** for this period.\n\nTop up or upgrade to continue.`
+          content: `### Query limit reached\n\nYou've used all **${err.detail?.limit} queries** for this period.\n\nTop up or upgrade to continue.`
         }]);
         setShowUpgrade(true);
         setLoading(false);
@@ -439,7 +796,7 @@ function NexusChat() {
           const data = line.slice(6).replace(/\\n/g, '\n');
           if (data === '[COMPLETE]') { setLoading(false); continue; }
           if (data.startsWith('[ERROR]')) {
-            setMessages(prev => [...prev, { role: 'assistant', content: `### ERROR\n${data}` }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `### Error\n${data}` }]);
             setLoading(false);
             return;
           }
@@ -458,324 +815,225 @@ function NexusChat() {
       }
     } catch (error) {
       console.error('API Error:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: `### ERROR\n${error.message}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `### Error\n${error.message}` }]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSend = (e) => {
+    e.preventDefault();
+    submitPrompt();
+  };
+
+  const usageText = () => {
+    if (!usage) return null;
+    if (tier === 'l3') return `${usage.used}/${usage.limit} used this month`;
+    const period = tier === 'l1' ? 'today' : 'this month';
+    return `${usage.remaining}/${usage.limit} left ${period}`;
+  };
+
+  const topup = tier === 'l1'
+    ? { price: STRIPE_TOPUP_L1, label: '+7 queries' }
+    : tier === 'l2'
+      ? { price: STRIPE_TOPUP_L2, label: '+25 queries' }
+      : { price: STRIPE_TOPUP_L3, label: '+50 queries' };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0b0f19', color: '#e2e8f0', fontFamily: 'ui-monospace, monospace' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#fff' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Terminal size={18} style={{ color: '#38bdf8' }} />
-          <span style={{ fontWeight: 'bold', letterSpacing: '0.05em' }}>USINO NEXUS</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: '#22c55e', fontSize: '12px' }}>● Live</span>
-          {/* Tier badge */}
-          <span style={{ fontSize: '10px', fontWeight: 'bold', letterSpacing: '0.1em', color: TIER_COLORS[tier], border: `1px solid ${TIER_COLORS[tier]}`, borderRadius: '3px', padding: '2px 7px' }}>
+      <header style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 24px', height: 56, borderBottom: '1px solid #e7e7ea',
+        background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', flexShrink: 0,
+      }}>
+        <Logo />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {usage && (
+            <span style={{ fontSize: '13px', color: usage.remaining === 0 ? '#dc2626' : '#71717a' }}>
+              {usageText()}
+              {usage.bonus_queries > 0 && <span style={{ color: '#16a34a' }}> · +{usage.bonus_queries} bonus</span>}
+            </span>
+          )}
+          <Pill tone={tier === 'l2' ? 'blue' : tier === 'l3' ? 'violet' : 'neutral'}>
             {TIER_LABELS[tier]}
-          </span>
-          {/* Usage counter — daily for L1, monthly pool for L2/L3 */}
-          {tier === 'l1' && usage && (
-            <span style={{ fontSize: '11px', color: usage.remaining === 0 ? '#ef4444' : '#64748b' }}>
-              {usage.remaining}/{usage.limit} queries left today
-            </span>
-          )}
-          {tier === 'l2' && usage && (
-            <span style={{ fontSize: '11px', color: usage.remaining === 0 ? '#ef4444' : '#64748b' }}>
-              {usage.remaining}/{usage.limit} queries left this month
-              {usage.bonus_queries > 0 && <span style={{ color: '#22c55e' }}> (+{usage.bonus_queries} bonus)</span>}
-            </span>
-          )}
-          {tier === 'l3' && usage && (
-            <span style={{ fontSize: '11px', color: '#64748b' }}>
-              {usage.used}/{usage.limit} used this month
-              {usage.bonus_queries > 0 && <span style={{ color: '#22c55e' }}> (+{usage.bonus_queries} bonus)</span>}
-            </span>
-          )}
-          {/* Upgrade button — L1 and L2 (L3 is top tier, nothing to upgrade to) */}
+          </Pill>
+          <button
+            onClick={() => handleTopup(topup.price)}
+            disabled={upgrading}
+            className="btn-ghost"
+            style={{
+              background: 'none', border: '1px solid #e4e4e7', borderRadius: '8px',
+              padding: '5px 11px', color: '#52525b', fontSize: '13px', fontWeight: 500,
+              cursor: upgrading ? 'wait' : 'pointer',
+            }}
+          >
+            {topup.label}
+          </button>
           {(tier === 'l1' || tier === 'l2') && (
             <button
               onClick={() => setShowUpgrade(true)}
-              style={{ background: 'linear-gradient(135deg, #38bdf8, #a855f7)', border: 'none', borderRadius: '4px', padding: '4px 12px', color: '#0f172a', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}
+              style={{
+                background: '#2563eb', border: 'none', borderRadius: '8px', padding: '6px 13px',
+                color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: '5px',
+              }}
             >
-              <Zap size={11} /> Upgrade
+              <Zap size={13} /> Upgrade
             </button>
           )}
-          {/* L1: top-up button (if not already at daily cap) */}
-          {tier === 'l1' && (
-            <button
-              onClick={() => handleTopup(STRIPE_TOPUP_L1)}
-              disabled={upgrading}
-              style={{ background: 'none', border: '1px solid #334155', borderRadius: '4px', padding: '4px 10px', color: '#94a3b8', cursor: upgrading ? 'wait' : 'pointer', fontSize: '11px' }}
-            >
-              +7 queries $10
-            </button>
-          )}
-          {/* L2/L3: top-up button */}
-          {tier === 'l2' && (
-            <button
-              onClick={() => handleTopup(STRIPE_TOPUP_L2)}
-              disabled={upgrading}
-              style={{ background: 'none', border: '1px solid #334155', borderRadius: '4px', padding: '4px 10px', color: '#38bdf8', cursor: upgrading ? 'wait' : 'pointer', fontSize: '11px' }}
-            >
-              +25 queries $75
-            </button>
-          )}
-          {tier === 'l3' && (
-            <button
-              onClick={() => handleTopup(STRIPE_TOPUP_L3)}
-              disabled={upgrading}
-              style={{ background: 'none', border: '1px solid #7e22ce', borderRadius: '4px', padding: '4px 10px', color: '#a855f7', cursor: upgrading ? 'wait' : 'pointer', fontSize: '11px' }}
-            >
-              +50 queries $600
-            </button>
-          )}
+          <div style={{ width: 1, height: 20, background: '#e7e7ea', margin: '0 2px' }} />
           {user && (
-            <span style={{ color: '#475569', fontSize: '11px' }}>{user.primaryEmailAddress?.emailAddress}</span>
+            <span style={{ color: '#a1a1aa', fontSize: '13px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.primaryEmailAddress?.emailAddress}
+            </span>
           )}
           <button
             onClick={() => signOut()}
-            style={{ background: 'none', border: '1px solid #1e293b', borderRadius: '4px', padding: '4px 10px', color: '#64748b', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px' }}
+            className="btn-ghost"
+            aria-label="Sign out"
+            style={{
+              background: 'none', border: '1px solid #e4e4e7', borderRadius: '8px',
+              padding: '6px 8px', color: '#71717a', cursor: 'pointer', display: 'flex',
+            }}
           >
-            <LogOut size={11} /> Sign out
+            <LogOut size={14} />
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Subscription success banner */}
       {showSuccessBanner && (
-        <div style={{ backgroundColor: '#052e16', borderBottom: '1px solid #166534', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#22c55e', fontSize: '13px' }}>✓ Subscription activated — your tier will update within seconds.</span>
-          <button onClick={() => setShowSuccessBanner(false)} style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', fontSize: '16px' }}>×</button>
-        </div>
+        <Banner tone="green" onClose={() => setShowSuccessBanner(false)}>
+          Subscription activated — your tier will update within seconds.
+        </Banner>
       )}
-
-      {/* Top-up success banner */}
       {showTopupBanner && (
-        <div style={{ backgroundColor: '#0c1a2e', borderBottom: '1px solid #1e3a5f', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#38bdf8', fontSize: '13px' }}>✓ Top-up processed — bonus queries added to your account.</span>
-          <button onClick={() => setShowTopupBanner(false)} style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '16px' }}>×</button>
-        </div>
+        <Banner tone="blue" onClose={() => setShowTopupBanner(false)}>
+          Top-up processed — bonus queries added to your account.
+        </Banner>
       )}
 
-      {/* Upgrade modal */}
       {showUpgrade && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '32px', maxWidth: '480px', width: '90%', fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
-            <div style={{ marginBottom: '24px' }}>
-              <div style={{ fontSize: '12px', color: '#a855f7', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: 'ui-monospace, monospace' }}>UPGRADE ACCESS</div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#f8fafc' }}>Institutional Intelligence</div>
-              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>Unlock full supply chain coverage, expanded queries, and priority routing.</div>
-            </div>
-
-            {/* L1 top-up — only show if currently L1 */}
-            {tier === 'l1' && (
-              <div style={{ border: '1px solid #1e293b', borderRadius: '8px', padding: '16px 20px', marginBottom: '12px', backgroundColor: '#0b0f19' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                  <span style={{ fontWeight: 'bold', color: '#94a3b8', fontSize: '13px' }}>L1 TOP-UP</span>
-                  <span style={{ color: '#f8fafc', fontSize: '16px', fontWeight: 'bold' }}>$10</span>
-                </div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>+7 bonus queries → raises your daily cap from 3 to 10</div>
-                <button
-                  onClick={() => { handleTopup(STRIPE_TOPUP_L1); setShowUpgrade(false); }}
-                  disabled={upgrading}
-                  style={{ width: '100%', backgroundColor: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: '6px', padding: '8px', fontWeight: 'bold', cursor: upgrading ? 'wait' : 'pointer', fontSize: '12px' }}
-                >
-                  {upgrading ? 'Redirecting...' : 'Top Up — L1'}
-                </button>
-              </div>
-            )}
-
-            {/* L2 — hidden once already subscribed */}
-            {tier !== 'l2' && (
-              <div style={{ border: '1px solid #334155', borderRadius: '8px', padding: '20px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-                  <span style={{ fontWeight: 'bold', color: '#38bdf8', fontSize: '14px' }}>L2 ANALYST</span>
-                  <span style={{ color: '#f8fafc', fontSize: '18px', fontWeight: 'bold' }}>$350<span style={{ fontSize: '12px', color: '#64748b' }}>/mo</span></span>
-                </div>
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px' }}>Unlimited queries · Full brief formats · Priority DeepSeek + Claude routing</div>
-                <button
-                  onClick={() => handleUpgrade(STRIPE_PRICE_L2)}
-                  disabled={upgrading}
-                  style={{ width: '100%', backgroundColor: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '6px', padding: '10px', fontWeight: 'bold', cursor: upgrading ? 'wait' : 'pointer', fontSize: '13px' }}
-                >
-                  {upgrading ? 'Redirecting...' : 'Subscribe — L2'}
-                </button>
-              </div>
-            )}
-
-            {/* L3 */}
-            <div style={{ border: '1px solid #a855f7', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 'bold', color: '#a855f7', fontSize: '14px' }}>L3 ENTERPRISE</span>
-                <span style={{ color: '#f8fafc', fontSize: '18px', fontWeight: 'bold' }}>$4,200<span style={{ fontSize: '12px', color: '#64748b' }}>/mo</span></span>
-              </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px' }}>Everything in L2 · Custom KB · White-label briefs · Dedicated support</div>
-              <button
-                onClick={() => handleUpgrade(STRIPE_PRICE_L3)}
-                disabled={upgrading}
-                style={{ width: '100%', backgroundColor: '#a855f7', color: '#fff', border: 'none', borderRadius: '6px', padding: '10px', fontWeight: 'bold', cursor: upgrading ? 'wait' : 'pointer', fontSize: '13px' }}
-              >
-                {upgrading ? 'Redirecting...' : 'Subscribe — L3'}
-              </button>
-            </div>
-
-            <button
-              onClick={() => setShowUpgrade(false)}
-              style={{ width: '100%', background: 'none', border: '1px solid #1e293b', borderRadius: '6px', padding: '8px', color: '#64748b', cursor: 'pointer', fontSize: '12px' }}
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
+        <UpgradeModal
+          tier={tier} upgrading={upgrading}
+          onUpgrade={handleUpgrade} onTopup={handleTopup}
+          onClose={() => setShowUpgrade(false)}
+        />
       )}
 
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {messages.map((msg, index) => {
-          const isInsightReport = msg.msgType === 'insight_report';
-          const isHtml = msg.role === 'assistant' && msg.content.trim().startsWith('<div');
-          // Show "Generate Report" button for L2/L3 on standard text responses only
-          const showReportBtn = msg.role === 'assistant' && !isHtml && !isInsightReport
-            && (tier === 'l2' || tier === 'l3') && msg.content.length > 100;
-          return (
-            <div key={index} style={{
-              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: isInsightReport ? '98%' : '85%',
-              backgroundColor: msg.role === 'user' ? '#1e293b' : '#0f172a',
-              border: `1px solid ${msg.role === 'user' ? '#334155' : '#1e293b'}`,
-              borderRadius: '8px',
-              padding: isInsightReport ? '0' : '16px 20px',
-              fontSize: '13px',
-              lineHeight: '1.6',
-              overflow: 'hidden',
-              flexShrink: 0,
-              textAlign: 'left',
-            }}>
-              {!isInsightReport && (
-                <div style={{ fontSize: '10px', color: msg.role === 'user' ? '#38bdf8' : '#a855f7', marginBottom: '10px', fontWeight: 'bold', letterSpacing: '0.1em' }}>
-                  {msg.role === 'user' ? '> QUERY' : '> NEXUS'}
-                </div>
-              )}
-              {msg.role === 'assistant'
-                ? isHtml
-                  ? (
-                    <>
-                      <div dangerouslySetInnerHTML={{ __html: msg.content }} style={{ fontFamily: 'Georgia, serif', textAlign: 'left' }} />
+      {/* Conversation */}
+      <main style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
+        <div style={{ maxWidth: COLUMN, margin: '0 auto', paddingBottom: '32px' }}>
+          {messages.length === 0 && !loading && (
+            <EmptyState
+              heading={`Welcome back${user?.firstName ? `, ${user.firstName}` : ''}`}
+              sub="Ask any supply chain, trade, or regional market question and Nexus will return an institutional-grade brief."
+              onPick={(p) => submitPrompt(p)}
+            />
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', paddingTop: messages.length ? '28px' : 0 }}>
+            {messages.map((msg, index) => {
+              const isInsightReport = msg.msgType === 'insight_report';
+              const isHtml = msg.role === 'assistant' && msg.content.trim().startsWith('<div');
+              const showReportBtn = msg.role === 'assistant' && !isHtml && !isInsightReport
+                && (tier === 'l2' || tier === 'l3') && msg.content.length > 100;
+
+              if (msg.role === 'user') {
+                return <UserBubble key={index}>{msg.content}</UserBubble>;
+              }
+
+              return (
+                <AssistantBlock key={index}>
+                  {isHtml ? (
+                    <div style={{ border: '1px solid #e7e7ea', borderRadius: '14px', overflow: 'hidden' }}>
+                      <div dangerouslySetInnerHTML={{ __html: msg.content }} style={{ fontFamily: 'Georgia, serif', textAlign: 'left', padding: isInsightReport ? 0 : '18px' }} />
                       {isInsightReport && (
-                        <div style={{ padding: '14px 20px', borderTop: '1px solid #1e293b', display: 'flex', gap: '10px', alignItems: 'center', backgroundColor: '#0b0f19' }}>
+                        <div style={{ padding: '13px 18px', borderTop: '1px solid #e7e7ea', display: 'flex', gap: '12px', alignItems: 'center', background: '#fafafa' }}>
                           <button
                             onClick={() => downloadPDF(msg.content)}
-                            style={{ background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px 18px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'ui-monospace, monospace' }}
+                            style={{
+                              background: '#18181b', color: '#fff', border: 'none', borderRadius: '8px',
+                              padding: '8px 15px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '7px',
+                            }}
                           >
-                            ↓ Download PDF
+                            <Download size={14} /> Download PDF
                           </button>
-                          <span style={{ fontSize: '11px', color: '#475569' }}>Report saved — download or ask a follow-up to refine</span>
+                          <span style={{ fontSize: '13px', color: '#a1a1aa' }}>Report saved — ask a follow-up to refine</span>
                         </div>
                       )}
-                    </>
-                  )
-                  : (
+                    </div>
+                  ) : (
                     <>
                       <div>{renderMarkdown(normalise(msg.content))}</div>
                       {showReportBtn && (
-                        <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #1e293b' }}>
+                        <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e7e7ea', display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <button
                             onClick={() => handleGenerateReport(msg.content)}
                             disabled={loading}
-                            style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', color: '#38bdf8', border: '1px solid #334155', borderRadius: '4px', padding: '6px 14px', fontSize: '11px', fontWeight: 'bold', cursor: loading ? 'wait' : 'pointer', fontFamily: 'ui-monospace, monospace', letterSpacing: '0.05em' }}
+                            className="btn-ghost"
+                            style={{
+                              background: '#fff', color: '#1d4ed8', border: '1px solid #c7d7fe',
+                              borderRadius: '8px', padding: '7px 13px', fontSize: '13px', fontWeight: 600,
+                              cursor: loading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '7px',
+                            }}
                           >
-                            📄 Generate Report
+                            <FileText size={14} /> Generate full report
                           </button>
-                          <span style={{ marginLeft: '10px', fontSize: '10px', color: '#475569' }}>Expand into full institutional PDF report</span>
+                          <span style={{ fontSize: '12.5px', color: '#a1a1aa' }}>Expand into an institutional PDF</span>
                         </div>
                       )}
                     </>
-                  )
-                : <div style={{ color: '#e2e8f0' }}>{msg.content}</div>
-              }
-            </div>
-          );
-        })}
+                  )}
+                </AssistantBlock>
+              );
+            })}
 
-        {loading && (
-          <div style={{ alignSelf: 'flex-start', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Loader2 size={16} className="loader-spin" style={{ color: '#a855f7' }} />
-            <span style={{ color: '#64748b', fontSize: '12px' }}>Processing intelligence...</span>
+            {loading && <TypingDots />}
+            <div ref={messagesEndRef} />
           </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <form onSubmit={handleSend} style={{ padding: '16px 20px', borderTop: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={loading}
-            placeholder="Ask a supply chain question..."
-            style={{ flex: 1, backgroundColor: '#020617', border: '1px solid #334155', borderRadius: '6px', padding: '12px 16px', color: '#f8fafc', fontFamily: 'inherit', fontSize: '13px', outline: 'none' }}
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            style={{ backgroundColor: loading || !input.trim() ? '#1e293b' : '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '6px', padding: '0 20px', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }}
-          >
-            <Send size={15} />
-          </button>
         </div>
-      </form>
+      </main>
 
-      <style>{`
-        .loader-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0b0f19; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
-      `}</style>
+      <Composer
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSend}
+        disabled={loading}
+        placeholder="Ask a supply chain question…"
+        hint="Enter to send · Shift + Enter for a new line · /brief and /weekly for report formats"
+      />
     </div>
   );
 }
 
-// ─── Guest chat (unauthenticated — 1 free query then sign-in modal) ──────────
+// ─── Guest chat (unauthenticated) ─────────────────────────────────────────────
 
 function GuestChat() {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: "### USINO NEXUS INTELLIGENCE SYSTEM\n\n**SYSTEM STATUS:** READY\n\nWelcome to NEXUS. Try one free query — no sign-up required."
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [guestQueryUsed, setGuestQueryUsed] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
-  const [signInRequired, setSignInRequired] = useState(false); // true = not closeable
+  const [signInRequired, setSignInRequired] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  const submitPrompt = async (rawValue) => {
+    const userPrompt = (rawValue ?? input).trim();
+    if (!userPrompt || loading) return;
 
-    // Second query attempt — require sign-in
     if (guestQueryUsed) {
       setSignInRequired(true);
       setShowSignIn(true);
       return;
     }
 
-    const userPrompt = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
     setLoading(true);
@@ -790,7 +1048,7 @@ function GuestChat() {
       if (response.status === 429) {
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: "### FREE PREVIEW LIMIT REACHED\n\nSign in to continue querying USINO NEXUS."
+          content: "### Free preview limit reached\n\nSign in to continue querying USINO Nexus."
         }]);
         setGuestQueryUsed(true);
         setSignInRequired(true);
@@ -820,7 +1078,7 @@ function GuestChat() {
           const data = line.slice(6).replace(/\\n/g, '\n');
           if (data === '[COMPLETE]') { setLoading(false); continue; }
           if (data.startsWith('[ERROR]')) {
-            setMessages(prev => [...prev, { role: 'assistant', content: `### ERROR\n${data}` }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `### Error\n${data}` }]);
             setLoading(false);
             return;
           }
@@ -838,113 +1096,96 @@ function GuestChat() {
         }
       }
 
-      // Query done — show sign-in modal (closeable)
       setGuestQueryUsed(true);
       setSignInRequired(false);
       setShowSignIn(true);
 
     } catch (error) {
       console.error('Guest query error:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: `### ERROR\n${error.message}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `### Error\n${error.message}` }]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSend = (e) => {
+    e.preventDefault();
+    submitPrompt();
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0b0f19', color: '#e2e8f0', fontFamily: 'ui-monospace, monospace' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#fff' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Terminal size={18} style={{ color: '#38bdf8' }} />
-          <span style={{ fontWeight: 'bold', letterSpacing: '0.05em' }}>USINO NEXUS</span>
-        </div>
+      <header style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 24px', height: 56, borderBottom: '1px solid #e7e7ea',
+        background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', flexShrink: 0,
+      }}>
+        <Logo />
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: '#22c55e', fontSize: '12px' }}>● Live</span>
-          <span style={{ fontSize: '10px', color: '#64748b', border: '1px solid #1e293b', borderRadius: '3px', padding: '2px 7px' }}>GUEST PREVIEW</span>
+          <Pill>Guest preview</Pill>
           <button
             onClick={() => { setSignInRequired(false); setShowSignIn(true); }}
-            style={{ background: 'linear-gradient(135deg, #38bdf8, #a855f7)', border: 'none', borderRadius: '4px', padding: '4px 12px', color: '#0f172a', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+            style={{
+              background: '#2563eb', border: 'none', borderRadius: '8px', padding: '6px 15px',
+              color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+            }}
           >
-            Sign In
+            Sign in
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Free query banner */}
       {!guestQueryUsed && (
-        <div style={{ backgroundColor: '#0c1a2e', borderBottom: '1px solid #1e3a5f', padding: '8px 20px', fontSize: '11px', color: '#38bdf8', letterSpacing: '0.05em', textAlign: 'center' }}>
-          Try 1 free query — no account needed. Sign in for full access.
+        <div style={{
+          background: '#eff4ff', borderBottom: '1px solid #c7d7fe', padding: '9px 24px',
+          fontSize: '13.5px', color: '#1d4ed8', textAlign: 'center', fontWeight: 500,
+        }}>
+          One free query — no account needed. Sign in for full access.
         </div>
       )}
 
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {messages.map((msg, index) => (
-          <div key={index} style={{
-            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-            maxWidth: '85%',
-            backgroundColor: msg.role === 'user' ? '#1e293b' : '#0f172a',
-            border: `1px solid ${msg.role === 'user' ? '#334155' : '#1e293b'}`,
-            borderRadius: '8px',
-            padding: '16px 20px',
-            fontSize: '13px',
-            lineHeight: '1.6',
-            flexShrink: 0,
-          }}>
-            <div style={{ fontSize: '10px', color: msg.role === 'user' ? '#38bdf8' : '#a855f7', marginBottom: '10px', fontWeight: 'bold', letterSpacing: '0.1em' }}>
-              {msg.role === 'user' ? '> QUERY' : '> NEXUS'}
-            </div>
-            {msg.role === 'assistant'
-              ? msg.content.trim().startsWith('<div')
-                ? <div dangerouslySetInnerHTML={{ __html: msg.content }} style={{ fontFamily: 'sans-serif' }} />
-                : <div>{renderMarkdown(normalise(msg.content))}</div>
-              : <div style={{ color: '#e2e8f0' }}>{msg.content}</div>
-            }
-          </div>
-        ))}
-        {loading && (
-          <div style={{ alignSelf: 'flex-start', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Loader2 size={16} className="loader-spin" style={{ color: '#a855f7' }} />
-            <span style={{ color: '#64748b', fontSize: '12px' }}>Processing intelligence...</span>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+      {/* Conversation */}
+      <main style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
+        <div style={{ maxWidth: COLUMN, margin: '0 auto', paddingBottom: '32px' }}>
+          {messages.length === 0 && !loading && (
+            <EmptyState
+              heading="Supply chain intelligence, on demand"
+              sub="Ask any supply chain, trade, or regional market question. Your first query is free — no account needed."
+              onPick={(p) => submitPrompt(p)}
+            />
+          )}
 
-      {/* Input */}
-      <form onSubmit={handleSend} style={{ padding: '16px 20px', borderTop: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={loading}
-            placeholder={guestQueryUsed ? "Sign in to continue querying..." : "Try a free supply chain query..."}
-            style={{ flex: 1, backgroundColor: '#020617', border: '1px solid #334155', borderRadius: '6px', padding: '12px 16px', color: '#f8fafc', fontFamily: 'inherit', fontSize: '13px', outline: 'none' }}
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            style={{ backgroundColor: loading || !input.trim() ? '#1e293b' : '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '6px', padding: '0 20px', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'background 0.2s' }}
-          >
-            <Send size={15} />
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', paddingTop: messages.length ? '28px' : 0 }}>
+            {messages.map((msg, index) =>
+              msg.role === 'user' ? (
+                <UserBubble key={index}>{msg.content}</UserBubble>
+              ) : (
+                <AssistantBlock key={index}>
+                  {msg.content.trim().startsWith('<div')
+                    ? <div dangerouslySetInnerHTML={{ __html: msg.content }} style={{ fontFamily: 'Georgia, serif' }} />
+                    : <div>{renderMarkdown(normalise(msg.content))}</div>}
+                </AssistantBlock>
+              )
+            )}
+            {loading && <TypingDots />}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </form>
+      </main>
 
-      {/* Sign-in modal */}
+      <Composer
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSend}
+        disabled={loading}
+        placeholder={guestQueryUsed ? 'Sign in to continue querying…' : 'Try a free supply chain query…'}
+        hint="Enter to send · Shift + Enter for a new line"
+      />
+
       {showSignIn && (
         <SignInModal onClose={signInRequired ? null : () => setShowSignIn(false)} />
       )}
-
-      <style>{`
-        .loader-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0b0f19; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
-      `}</style>
     </div>
   );
 }
