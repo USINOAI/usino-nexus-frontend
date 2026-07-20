@@ -258,7 +258,7 @@ function Logo() {
         </svg>
       </div>
       <span style={{ fontWeight: 600, fontSize: '15px', letterSpacing: '-0.01em', color: '#18181b' }}>
-        USINO <span style={{ color: '#71717a', fontWeight: 500 }}>Nexus</span>
+        USINO AI <span style={{ color: '#71717a', fontWeight: 500 }}>Nexus</span>
       </span>
     </div>
   );
@@ -1048,7 +1048,7 @@ function GuestChat() {
       if (response.status === 429) {
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: "### Free preview limit reached\n\nSign in to continue querying USINO Nexus."
+          content: "### Free preview limit reached\n\nSign in to continue querying USINO AI Nexus."
         }]);
         setGuestQueryUsed(true);
         setSignInRequired(true);
