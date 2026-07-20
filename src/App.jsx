@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, ArrowUp, LogOut, Zap, FileText, Download, X, Sparkles } from 'lucide-react';
+import { Loader2, ArrowUp, LogOut, Zap, FileText, Download, X, Sparkles, Mail } from 'lucide-react';
 import {
   ClerkProvider,
   SignIn,
@@ -19,7 +19,34 @@ const STRIPE_TOPUP_L1 = 'price_1Tu3xwALcJ18DmKpfq9H9NFX'; // +7 queries $10
 const STRIPE_TOPUP_L2 = 'price_1Tu3ylALcJ18DmKpiFx5MWts'; // +25 queries
 const STRIPE_TOPUP_L3 = 'price_1Tu3zsALcJ18DmKplKQPDWUh'; // +50 queries
 
+// Beta: not charging yet. Stripe products live only in the sandbox, so every
+// checkout path is disabled and replaced with an access request by email.
+// Flip to false once live Stripe products exist and billing is switched on.
+const BETA_MODE = true;
+const CONTACT_EMAIL = 'info@usino.ai';
+
 const TIER_LABELS = { l1: 'Free', l2: 'Analyst', l3: 'Enterprise' };
+
+const TIER_TABLE = [
+  { key: 'l1', name: 'L1 Free', allowance: '3 queries per day', detail: 'Sector and macro level analysis. No company names or tickers.' },
+  { key: 'l2', name: 'L2 Analyst', allowance: '100 queries per month', detail: 'Listed companies named with tickers, figures and capacity data.' },
+  { key: 'l3', name: 'L3 Enterprise', allowance: '250 queries per month', detail: 'Everything in L2 plus non-listed firms, custom knowledge base and scorecard citations.' },
+];
+
+function requestAccessMailto({ email, tier, want }) {
+  const subject = `USINO AI NEXUS — ${want} access request`;
+  const body = [
+    'Hello USINO AI,',
+    '',
+    `I would like to request ${want} access to USINO AI NEXUS.`,
+    '',
+    `Account email: ${email || '(please fill in)'}`,
+    `Current tier: ${TIER_LABELS[tier] || tier}`,
+    '',
+    'Thank you.',
+  ].join('\n');
+  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 const TIER_COLORS = {
   l1: { fg: '#52525b', bg: '#f4f4f5', border: '#e4e4e7' },
   l2: { fg: '#1d4ed8', bg: '#eff4ff', border: '#c7d7fe' },
@@ -549,6 +576,78 @@ function PlanCard({ name, price, per, blurb, cta, onClick, disabled, accent, sub
   );
 }
 
+function BetaAccessModal({ tier, email, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(24,24,27,0.45)', backdropFilter: 'blur(3px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '20px',
+    }}>
+      <div style={{
+        background: '#fff', border: '1px solid #e7e7ea', borderRadius: '16px',
+        padding: '26px', maxWidth: 500, width: '100%',
+        boxShadow: '0 20px 48px rgba(16,24,40,0.18)', maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', letterSpacing: '-0.02em' }}>
+          Access tiers
+        </div>
+        <div style={{ fontSize: '14px', color: '#71717a', marginTop: '5px', marginBottom: '18px', lineHeight: 1.55 }}>
+          USINO AI NEXUS is in invitation-only beta. Paid plans open later — for now, higher tiers are granted by request.
+        </div>
+
+        {TIER_TABLE.map(t => {
+          const current = t.key === tier;
+          return (
+            <div key={t.key} style={{
+              border: `1px solid ${current ? '#c7d7fe' : '#e7e7ea'}`,
+              background: current ? '#fbfcff' : '#fff',
+              borderRadius: '12px', padding: '14px 16px', marginBottom: '10px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
+                <span style={{ fontWeight: 600, fontSize: '14.5px', color: current ? '#1d4ed8' : '#18181b' }}>
+                  {t.name}
+                </span>
+                <span style={{ fontSize: '13px', color: '#71717a', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
+                  {t.allowance}
+                </span>
+              </div>
+              <div style={{ fontSize: '13px', color: '#71717a', marginTop: '4px', lineHeight: 1.55 }}>
+                {t.detail}
+              </div>
+              {current && (
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#1d4ed8', marginTop: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Your current tier
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <a
+          href={requestAccessMailto({ email, tier, want: tier === 'l2' ? 'L3' : 'L2' })}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            width: '100%', background: '#2563eb', color: '#fff', borderRadius: '9px',
+            padding: '11px', fontWeight: 600, fontSize: '14px', textDecoration: 'none', marginTop: '6px',
+          }}
+        >
+          <Mail size={15} /> Request {tier === 'l2' ? 'L3' : 'L2'} access
+        </a>
+
+        <button
+          onClick={onClose}
+          className="btn-ghost"
+          style={{
+            width: '100%', background: 'none', border: 'none', borderRadius: '9px',
+            padding: '9px', color: '#71717a', cursor: 'pointer', fontSize: '13.5px', marginTop: '6px',
+          }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function UpgradeModal({ tier, upgrading, onUpgrade, onTopup, onClose }) {
   return (
     <div style={{
@@ -826,7 +925,9 @@ function NexusChat() {
         const err = await response.json();
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `### Query limit reached\n\nYou've used all **${err.detail?.limit} queries** for this period.\n\nTop up or upgrade to continue.`
+          content: BETA_MODE
+            ? `### Query limit reached\n\nYou've used all **${err.detail?.limit} queries** for this period.\n\nRequest higher access to continue.`
+            : `### Query limit reached\n\nYou've used all **${err.detail?.limit} queries** for this period.\n\nTop up or upgrade to continue.`
         }]);
         setShowUpgrade(true);
         setLoading(false);
@@ -916,18 +1017,20 @@ function NexusChat() {
           <Pill tone={tier === 'l2' ? 'blue' : tier === 'l3' ? 'violet' : 'neutral'}>
             {TIER_LABELS[tier]}
           </Pill>
-          <button
-            onClick={() => handleTopup(topup.price)}
-            disabled={upgrading}
-            className="btn-ghost"
-            style={{
-              background: 'none', border: '1px solid #e4e4e7', borderRadius: '8px',
-              padding: '5px 11px', color: '#52525b', fontSize: '13px', fontWeight: 500,
-              cursor: upgrading ? 'wait' : 'pointer',
-            }}
-          >
-            {topup.label}
-          </button>
+          {!BETA_MODE && (
+            <button
+              onClick={() => handleTopup(topup.price)}
+              disabled={upgrading}
+              className="btn-ghost"
+              style={{
+                background: 'none', border: '1px solid #e4e4e7', borderRadius: '8px',
+                padding: '5px 11px', color: '#52525b', fontSize: '13px', fontWeight: 500,
+                cursor: upgrading ? 'wait' : 'pointer',
+              }}
+            >
+              {topup.label}
+            </button>
+          )}
           {(tier === 'l1' || tier === 'l2') && (
             <button
               onClick={() => setShowUpgrade(true)}
@@ -937,7 +1040,7 @@ function NexusChat() {
                 display: 'flex', alignItems: 'center', gap: '5px',
               }}
             >
-              <Zap size={13} /> Upgrade
+              {BETA_MODE ? <><Mail size={13} /> Request access</> : <><Zap size={13} /> Upgrade</>}
             </button>
           )}
           <div style={{ width: 1, height: 20, background: '#e7e7ea', margin: '0 2px' }} />
@@ -972,11 +1075,19 @@ function NexusChat() {
       )}
 
       {showUpgrade && (
-        <UpgradeModal
-          tier={tier} upgrading={upgrading}
-          onUpgrade={handleUpgrade} onTopup={handleTopup}
-          onClose={() => setShowUpgrade(false)}
-        />
+        BETA_MODE ? (
+          <BetaAccessModal
+            tier={tier}
+            email={user?.primaryEmailAddress?.emailAddress}
+            onClose={() => setShowUpgrade(false)}
+          />
+        ) : (
+          <UpgradeModal
+            tier={tier} upgrading={upgrading}
+            onUpgrade={handleUpgrade} onTopup={handleTopup}
+            onClose={() => setShowUpgrade(false)}
+          />
+        )
       )}
 
       {/* Conversation */}
