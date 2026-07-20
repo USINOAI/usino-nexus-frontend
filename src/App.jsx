@@ -221,6 +221,57 @@ function renderMarkdown(text) {
   return elements;
 }
 
+// Split the compliance disclaimer off the end of a response so it can be
+// rendered after the report call-to-action rather than before it.
+function splitDisclaimer(text) {
+  const m =
+    text.match(/\n\s*(This response is market intelligence[\s\S]*)$/) ||
+    text.match(/\n\s*(Market intelligence only\.[\s\S]*)$/);
+  if (!m) return [text, null];
+  return [text.slice(0, m.index).trimEnd(), m[1].trim()];
+}
+
+function Disclaimer({ text }) {
+  return (
+    <div style={{
+      marginTop: '20px', paddingTop: '14px', borderTop: '1px solid #e7e7ea',
+      fontSize: '12px', color: '#a1a1aa', lineHeight: 1.6, textAlign: 'left',
+    }}>
+      {text}
+    </div>
+  );
+}
+
+function ReportCTA({ onClick, disabled }) {
+  return (
+    <div style={{
+      marginTop: '18px', padding: '14px 16px', background: '#fbfcff',
+      border: '1px solid #c7d7fe', borderRadius: '12px', display: 'flex',
+      alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap',
+    }}>
+      <div style={{ minWidth: 200, flex: 1 }}>
+        <div style={{ fontWeight: 600, fontSize: '14px', color: '#18181b' }}>
+          Generate PDF report for full details?
+        </div>
+        <div style={{ fontSize: '13px', color: '#71717a', marginTop: '2px', lineHeight: 1.5 }}>
+          Expands this brief into a full institutional report with risk register and watchlist.
+        </div>
+      </div>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        style={{
+          background: '#2563eb', color: '#fff', border: 'none', borderRadius: '9px',
+          padding: '9px 15px', fontSize: '13.5px', fontWeight: 600, flexShrink: 0,
+          cursor: disabled ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '7px',
+        }}
+      >
+        <FileText size={15} /> Generate report
+      </button>
+    </div>
+  );
+}
+
 // ─── Clerk appearance ─────────────────────────────────────────────────────────
 
 const CLERK_APPEARANCE = {
@@ -303,6 +354,12 @@ function EmptyState({ heading, sub, onPick }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px',
       }}>
         <Sparkles size={20} color="#fff" />
+      </div>
+      <div style={{
+        fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: '#2563eb', marginBottom: '10px',
+      }}>
+        AI Supply Chain Intelligence
       </div>
       <h1 style={{ fontSize: '27px', fontWeight: 600, letterSpacing: '-0.025em', color: '#18181b', margin: '0 0 8px' }}>
         {heading}
@@ -928,7 +985,7 @@ function NexusChat() {
           {messages.length === 0 && !loading && (
             <EmptyState
               heading={`Welcome back${user?.firstName ? `, ${user.firstName}` : ''}`}
-              sub="Ask any supply chain, trade, or regional market question and Nexus will return an institutional-grade brief."
+              sub="Ask anything about frontier technology supply chains — semiconductors, robotics, optics, energy — and Nexus returns an institutional-grade brief."
               onPick={(p) => submitPrompt(p)}
             />
           )}
@@ -966,26 +1023,21 @@ function NexusChat() {
                       )}
                     </div>
                   ) : (
-                    <>
-                      <div>{renderMarkdown(normalise(msg.content))}</div>
-                      {showReportBtn && (
-                        <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e7e7ea', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <button
-                            onClick={() => handleGenerateReport(msg.content)}
-                            disabled={loading}
-                            className="btn-ghost"
-                            style={{
-                              background: '#fff', color: '#1d4ed8', border: '1px solid #c7d7fe',
-                              borderRadius: '8px', padding: '7px 13px', fontSize: '13px', fontWeight: 600,
-                              cursor: loading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '7px',
-                            }}
-                          >
-                            <FileText size={14} /> Generate full report
-                          </button>
-                          <span style={{ fontSize: '12.5px', color: '#a1a1aa' }}>Expand into an institutional PDF</span>
-                        </div>
-                      )}
-                    </>
+                    (() => {
+                      const [body, disclaimer] = splitDisclaimer(msg.content);
+                      return (
+                        <>
+                          <div>{renderMarkdown(normalise(body))}</div>
+                          {showReportBtn && (
+                            <ReportCTA
+                              onClick={() => handleGenerateReport(msg.content)}
+                              disabled={loading}
+                            />
+                          )}
+                          {disclaimer && <Disclaimer text={disclaimer} />}
+                        </>
+                      );
+                    })()
                   )}
                 </AssistantBlock>
               );
@@ -1150,8 +1202,8 @@ function GuestChat() {
         <div style={{ maxWidth: COLUMN, margin: '0 auto', paddingBottom: '32px' }}>
           {messages.length === 0 && !loading && (
             <EmptyState
-              heading="Supply chain intelligence, on demand"
-              sub="Ask any supply chain, trade, or regional market question. Your first query is free — no account needed."
+              heading="Ask anything about the AI supply chain"
+              sub="Semiconductors, robotics, optics, energy, and the trade flows behind them. Your first query is free — no account needed."
               onPick={(p) => submitPrompt(p)}
             />
           )}
@@ -1164,7 +1216,15 @@ function GuestChat() {
                 <AssistantBlock key={index}>
                   {msg.content.trim().startsWith('<div')
                     ? <div dangerouslySetInnerHTML={{ __html: msg.content }} style={{ fontFamily: 'Georgia, serif' }} />
-                    : <div>{renderMarkdown(normalise(msg.content))}</div>}
+                    : (() => {
+                      const [body, disclaimer] = splitDisclaimer(msg.content);
+                      return (
+                        <>
+                          <div>{renderMarkdown(normalise(body))}</div>
+                          {disclaimer && <Disclaimer text={disclaimer} />}
+                        </>
+                      );
+                    })()}
                 </AssistantBlock>
               )
             )}
