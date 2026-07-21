@@ -481,6 +481,18 @@ function Composer({ value, onChange, onSubmit, disabled, placeholder, hint }) {
         <div style={{ fontSize: '12px', color: '#a1a1aa', marginTop: '8px', textAlign: 'center' }}>
           {hint}
         </div>
+        <div style={{
+          fontSize: '12px', color: '#a1a1aa', marginTop: '6px', textAlign: 'center',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
+        }}>
+          <a href="/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: '#a1a1aa', textDecoration: 'none' }}>Terms</a>
+          <span aria-hidden="true">·</span>
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#a1a1aa', textDecoration: 'none' }}>Privacy</a>
+          <span aria-hidden="true">·</span>
+          <a href="/refunds.html" target="_blank" rel="noopener noreferrer" style={{ color: '#a1a1aa', textDecoration: 'none' }}>Refunds</a>
+          <span aria-hidden="true">·</span>
+          <span>© 2026 USINO AI PTE. LTD.</span>
+        </div>
       </form>
     </div>
   );
