@@ -580,9 +580,10 @@ const requestInputStyle = {
 };
 
 function BetaAccessModal({ tier, user, getToken, onClose }) {
-  const wantTier = tier === 'l2' ? 'l3' : 'l2';
   const email = user?.primaryEmailAddress?.emailAddress || '';
 
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [selectedTier, setSelectedTier] = useState(tier === 'l2' ? 'l3' : 'l2');
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -592,20 +593,29 @@ function BetaAccessModal({ tier, user, getToken, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!fullName.trim()) {
+      setError('Add your name so we know who this is.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
+      const trimmedName = fullName.trim();
+      const spaceIdx = trimmedName.indexOf(' ');
+      const first_name = spaceIdx === -1 ? trimmedName : trimmedName.slice(0, spaceIdx);
+      const last_name = spaceIdx === -1 ? '' : trimmedName.slice(spaceIdx + 1);
+
       const token = await getToken();
       const res = await fetch(`${API_BASE}/api/v1/access-requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           email,
-          first_name: user?.firstName || '',
-          last_name: user?.lastName || '',
+          first_name,
+          last_name,
           company,
           job_title: jobTitle,
-          tier_requested: wantTier,
+          tier_requested: selectedTier,
           notes,
         }),
       });
@@ -686,8 +696,35 @@ function BetaAccessModal({ tier, user, getToken, onClose }) {
 
             <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid #f0f0f2', paddingTop: '16px' }}>
               <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#18181b', marginBottom: '10px' }}>
-                Request {TIER_LABELS[wantTier]} access
+                Request access
               </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                {['l2', 'l3'].map(k => {
+                  const active = selectedTier === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setSelectedTier(k)}
+                      style={{
+                        flex: 1, padding: '9px', borderRadius: '9px', fontSize: '13.5px', fontWeight: 600,
+                        border: `1px solid ${active ? '#2563eb' : '#e4e4e7'}`,
+                        background: active ? '#eff4ff' : '#fff',
+                        color: active ? '#1d4ed8' : '#52525b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {TIER_LABELS[k]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <input
+                type="text" placeholder="Full name" value={fullName}
+                onChange={e => setFullName(e.target.value)} style={requestInputStyle}
+              />
               <input
                 type="text" placeholder="Company" value={company}
                 onChange={e => setCompany(e.target.value)} style={requestInputStyle}
@@ -716,7 +753,7 @@ function BetaAccessModal({ tier, user, getToken, onClose }) {
                   cursor: submitting ? 'wait' : 'pointer', marginTop: '10px',
                 }}
               >
-                <Mail size={15} /> {submitting ? 'Sending…' : `Request ${TIER_LABELS[wantTier]} access`}
+                <Mail size={15} /> {submitting ? 'Sending…' : `Request ${TIER_LABELS[selectedTier]} access`}
               </button>
             </form>
 
