@@ -23,7 +23,6 @@ const STRIPE_TOPUP_L3 = 'price_1Tu3zsALcJ18DmKplKQPDWUh'; // +50 queries
 // checkout path is disabled and replaced with an access request by email.
 // Flip to false once live Stripe products exist and billing is switched on.
 const BETA_MODE = true;
-const CONTACT_EMAIL = 'info@usino.ai';
 
 const TIER_LABELS = { l1: 'Free', l2: 'Analyst', l3: 'Enterprise' };
 
@@ -33,20 +32,6 @@ const TIER_TABLE = [
   { key: 'l3', name: 'L3 Enterprise', allowance: '250 queries per month', detail: 'Everything in L2 plus non-listed firms, custom knowledge base and scorecard citations.' },
 ];
 
-function requestAccessMailto({ email, tier, want }) {
-  const subject = `USINO AI NEXUS — ${want} access request`;
-  const body = [
-    'Hello USINO AI,',
-    '',
-    `I would like to request ${want} access to USINO AI NEXUS.`,
-    '',
-    `Account email: ${email || '(please fill in)'}`,
-    `Current tier: ${TIER_LABELS[tier] || tier}`,
-    '',
-    'Thank you.',
-  ].join('\n');
-  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
 const TIER_COLORS = {
   l1: { fg: '#52525b', bg: '#f4f4f5', border: '#e4e4e7' },
   l2: { fg: '#1d4ed8', bg: '#eff4ff', border: '#c7d7fe' },
@@ -588,7 +573,52 @@ function PlanCard({ name, price, per, blurb, cta, onClick, disabled, accent, sub
   );
 }
 
-function BetaAccessModal({ tier, email, onClose }) {
+const requestInputStyle = {
+  width: '100%', boxSizing: 'border-box', border: '1px solid #e4e4e7', borderRadius: '9px',
+  padding: '10px 12px', fontSize: '14px', fontFamily: 'inherit', color: '#18181b',
+  marginBottom: '8px', outline: 'none',
+};
+
+function BetaAccessModal({ tier, user, getToken, onClose }) {
+  const wantTier = tier === 'l2' ? 'l3' : 'l2';
+  const email = user?.primaryEmailAddress?.emailAddress || '';
+
+  const [company, setCompany] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE}/api/v1/access-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          email,
+          first_name: user?.firstName || '',
+          last_name: user?.lastName || '',
+          company,
+          job_title: jobTitle,
+          tier_requested: wantTier,
+          notes,
+        }),
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Access request error:', err);
+      setError("Couldn't send that — try again in a moment.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(24,24,27,0.45)', backdropFilter: 'blur(3px)',
@@ -599,62 +629,109 @@ function BetaAccessModal({ tier, email, onClose }) {
         padding: '26px', maxWidth: 500, width: '100%',
         boxShadow: '0 20px 48px rgba(16,24,40,0.18)', maxHeight: '90vh', overflowY: 'auto',
       }}>
-        <div style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', letterSpacing: '-0.02em' }}>
-          Access tiers
-        </div>
-        <div style={{ fontSize: '14px', color: '#71717a', marginTop: '5px', marginBottom: '18px', lineHeight: 1.55 }}>
-          USINO AI NEXUS is in invitation-only beta. Paid plans open later — for now, higher tiers are granted by request.
-        </div>
+        {submitted ? (
+          <>
+            <div style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', letterSpacing: '-0.02em' }}>
+              Request sent
+            </div>
+            <div style={{ fontSize: '14px', color: '#71717a', marginTop: '8px', marginBottom: '18px', lineHeight: 1.55 }}>
+              We'll review it and follow up at {email}.
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '9px',
+                padding: '11px', fontWeight: 600, fontSize: '14px', cursor: 'pointer',
+              }}
+            >
+              Done
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: '19px', fontWeight: 600, color: '#18181b', letterSpacing: '-0.02em' }}>
+              Access tiers
+            </div>
+            <div style={{ fontSize: '14px', color: '#71717a', marginTop: '5px', marginBottom: '18px', lineHeight: 1.55 }}>
+              USINO AI NEXUS is in invitation-only beta. Paid plans open later — for now, higher tiers are granted by request.
+            </div>
 
-        {TIER_TABLE.map(t => {
-          const current = t.key === tier;
-          return (
-            <div key={t.key} style={{
-              border: `1px solid ${current ? '#c7d7fe' : '#e7e7ea'}`,
-              background: current ? '#fbfcff' : '#fff',
-              borderRadius: '12px', padding: '14px 16px', marginBottom: '10px',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
-                <span style={{ fontWeight: 600, fontSize: '14.5px', color: current ? '#1d4ed8' : '#18181b' }}>
-                  {t.name}
-                </span>
-                <span style={{ fontSize: '13px', color: '#71717a', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
-                  {t.allowance}
-                </span>
+            {TIER_TABLE.map(t => {
+              const current = t.key === tier;
+              return (
+                <div key={t.key} style={{
+                  border: `1px solid ${current ? '#c7d7fe' : '#e7e7ea'}`,
+                  background: current ? '#fbfcff' : '#fff',
+                  borderRadius: '12px', padding: '14px 16px', marginBottom: '10px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px' }}>
+                    <span style={{ fontWeight: 600, fontSize: '14.5px', color: current ? '#1d4ed8' : '#18181b' }}>
+                      {t.name}
+                    </span>
+                    <span style={{ fontSize: '13px', color: '#71717a', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
+                      {t.allowance}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#71717a', marginTop: '4px', lineHeight: 1.55 }}>
+                    {t.detail}
+                  </div>
+                  {current && (
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#1d4ed8', marginTop: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      Your current tier
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid #f0f0f2', paddingTop: '16px' }}>
+              <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#18181b', marginBottom: '10px' }}>
+                Request {TIER_LABELS[wantTier]} access
               </div>
-              <div style={{ fontSize: '13px', color: '#71717a', marginTop: '4px', lineHeight: 1.55 }}>
-                {t.detail}
-              </div>
-              {current && (
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#1d4ed8', marginTop: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Your current tier
+              <input
+                type="text" placeholder="Company" value={company}
+                onChange={e => setCompany(e.target.value)} style={requestInputStyle}
+              />
+              <input
+                type="text" placeholder="Job title" value={jobTitle}
+                onChange={e => setJobTitle(e.target.value)} style={requestInputStyle}
+              />
+              <textarea
+                placeholder="Anything else? (optional)" value={notes}
+                onChange={e => setNotes(e.target.value)}
+                style={{ ...requestInputStyle, minHeight: '60px', resize: 'vertical', marginBottom: '4px' }}
+              />
+              {error && (
+                <div style={{ color: '#dc2626', fontSize: '13px', marginTop: '4px', marginBottom: '4px' }}>
+                  {error}
                 </div>
               )}
-            </div>
-          );
-        })}
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  width: '100%', background: '#2563eb', color: '#fff', borderRadius: '9px',
+                  padding: '11px', fontWeight: 600, fontSize: '14px', border: 'none',
+                  cursor: submitting ? 'wait' : 'pointer', marginTop: '10px',
+                }}
+              >
+                <Mail size={15} /> {submitting ? 'Sending…' : `Request ${TIER_LABELS[wantTier]} access`}
+              </button>
+            </form>
 
-        <a
-          href={requestAccessMailto({ email, tier, want: tier === 'l2' ? 'L3' : 'L2' })}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-            width: '100%', background: '#2563eb', color: '#fff', borderRadius: '9px',
-            padding: '11px', fontWeight: 600, fontSize: '14px', textDecoration: 'none', marginTop: '6px',
-          }}
-        >
-          <Mail size={15} /> Request {tier === 'l2' ? 'L3' : 'L2'} access
-        </a>
-
-        <button
-          onClick={onClose}
-          className="btn-ghost"
-          style={{
-            width: '100%', background: 'none', border: 'none', borderRadius: '9px',
-            padding: '9px', color: '#71717a', cursor: 'pointer', fontSize: '13.5px', marginTop: '6px',
-          }}
-        >
-          Close
-        </button>
+            <button
+              onClick={onClose}
+              className="btn-ghost"
+              style={{
+                width: '100%', background: 'none', border: 'none', borderRadius: '9px',
+                padding: '9px', color: '#71717a', cursor: 'pointer', fontSize: '13.5px', marginTop: '6px',
+              }}
+            >
+              Close
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1090,7 +1167,8 @@ function NexusChat() {
         BETA_MODE ? (
           <BetaAccessModal
             tier={tier}
-            email={user?.primaryEmailAddress?.emailAddress}
+            user={user}
+            getToken={getToken}
             onClose={() => setShowUpgrade(false)}
           />
         ) : (
