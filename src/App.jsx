@@ -893,7 +893,7 @@ function NexusChat() {
     win.document.close();
   }, []);
 
-  const handleGenerateReport = useCallback(async (sourceContent) => {
+  const handleGenerateReport = useCallback(async (sourceContent, sourceIndex) => {
     if (loading) return;
     setLoading(true);
     const prompt = `Generate a full institutional insight report based on the following intelligence brief. Expand into a comprehensive multi-section report with risk register, watchlist, and USINO.AI VIEW callouts.\n\nSOURCE BRIEF:\n${sourceContent}`;
@@ -925,7 +925,17 @@ function NexusChat() {
           if (data.startsWith('[ERROR]')) { setLoading(false); return; }
           aiReply += data;
           if (!messageAdded) {
-            setMessages(prev => [...prev, { role: 'assistant', content: aiReply, msgType: 'insight_report' }]);
+            // Replace the source brief with the full report instead of stacking the
+            // report below it — only once we actually have something to show, so a
+            // failed/errored generation leaves the original brief intact rather than
+            // hiding it for nothing.
+            setMessages(prev => {
+              const u = [...prev];
+              if (sourceIndex != null && u[sourceIndex]) {
+                u[sourceIndex] = { ...u[sourceIndex], hidden: true };
+              }
+              return [...u, { role: 'assistant', content: aiReply, msgType: 'insight_report' }];
+            });
             messageAdded = true;
           } else {
             setMessages(prev => {
@@ -1230,6 +1240,7 @@ function NexusChat() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', paddingTop: messages.length ? '28px' : 0 }}>
             {messages.map((msg, index) => {
+              if (msg.hidden) return null; // replaced by its generated report below
               const isInsightReport = msg.msgType === 'insight_report';
               const isHtml = msg.role === 'assistant' && msg.content.trim().startsWith('<div');
               const showReportBtn = msg.role === 'assistant' && !isHtml && !isInsightReport
@@ -1268,7 +1279,7 @@ function NexusChat() {
                           <div>{renderMarkdown(normalise(body))}</div>
                           {showReportBtn && (
                             <ReportCTA
-                              onClick={() => handleGenerateReport(msg.content)}
+                              onClick={() => handleGenerateReport(msg.content, index)}
                               disabled={loading}
                             />
                           )}
