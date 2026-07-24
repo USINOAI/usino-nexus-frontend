@@ -1293,7 +1293,7 @@ function NexusChat() {
         onSubmit={handleSend}
         disabled={loading}
         placeholder="Ask a supply chain question…"
-        hint="Enter to send · Shift + Enter for a new line · /brief and /weekly for report formats"
+        hint="Enter to send · Shift + Enter for a new line · /brief for report format"
       />
     </div>
   );
